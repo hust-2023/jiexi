@@ -4,6 +4,7 @@ import com.example.jiexi.entity.PaperEntity;
 import com.example.jiexi.entity.TaskEntity;
 import com.example.jiexi.mapper.PaperMapper;
 import com.example.jiexi.mapper.TaskMapper;
+import com.example.jiexi.service.TaskParseService;   // ⭐ 新增
 import com.example.jiexi.service.TaskService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,8 @@ public class TaskServiceImpl implements TaskService {
     private final TaskMapper taskMapper;
     private final PaperMapper paperMapper;
 
+    private final TaskParseService taskParseService;   // ⭐ 新增：异步解析服务
+
     private static final String UPLOAD_DIR = "D:/aaa_jiexi_temmp/";
 
     @Override
@@ -36,16 +39,16 @@ public class TaskServiceImpl implements TaskService {
             throw new IllegalArgumentException("请至少上传一篇 PDF 论文");
         }
 
-        // 2️⃣ 创建任务（写数据库）
+        // 2️⃣ 创建任务
         TaskEntity task = new TaskEntity();
         task.setUserId(userId);
         task.setTaskName(taskName);
         task.setPaperCount(files.size());
-        task.setStatus("WAITING");
+        task.setStatus("WAITING"); // ⭐ 初始状态：等待解析
         task.setCreateTime(LocalDateTime.now());
 
-        taskMapper.insert(task);           // ⭐ 数据库插入
-        Long taskId = task.getId();        // ⭐ MyBatis-Plus 自动回填
+        taskMapper.insert(task);
+        Long taskId = task.getId();
 
         // 3️⃣ 创建任务目录
         File taskDir = new File(UPLOAD_DIR + taskId);
@@ -53,7 +56,7 @@ public class TaskServiceImpl implements TaskService {
             throw new RuntimeException("创建任务目录失败");
         }
 
-        // 4️⃣ 保存文件 + 插入 paper 表
+        // 4️⃣ 保存文件 + paper 入库
         for (MultipartFile file : files) {
 
             if (!file.getOriginalFilename().toLowerCase().endsWith(".pdf")) {
@@ -77,8 +80,11 @@ public class TaskServiceImpl implements TaskService {
             paper.setParseStatus("WAITING");
             paper.setCreateTime(LocalDateTime.now());
 
-            paperMapper.insert(paper);     // ⭐ 数据库存储
+            paperMapper.insert(paper);
         }
+
+        // ⭐⭐⭐ 5️⃣ 触发异步解析（关键）
+        taskParseService.parseTaskAsync(taskId);
 
         log.info("创建导读任务成功 taskId={}, paperCount={}", taskId, files.size());
         return taskId;
