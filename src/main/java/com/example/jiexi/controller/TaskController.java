@@ -16,7 +16,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TaskController {
 
-    // ✅ 由 Spring 注入 Service（非 static）
     private final TaskService taskService;
 
     @PostMapping("/create")
@@ -25,24 +24,23 @@ public class TaskController {
             @RequestParam String taskName,
             @RequestParam List<MultipartFile> files
     ) {
-        Long userId = 1L; // TODO 从 JWT 中获取
+        Long userId = 1L; // TODO: 后续替换为JWT获取
         Long taskId = taskService.createTask(userId, taskName, files);
         return ApiResponse.success(taskId);
     }
 
-    @GetMapping
+    @GetMapping("/list")
     @Operation(summary = "获取导读任务列表")
-    public ApiResponse<List<TaskListVO>> listTasks() {
-
-        Long userId = 1L; // ⚠️ 先写死，后面接登录态
-        List<TaskListVO> list = taskService.listTasks(userId);
-        return ApiResponse.success(list);
+    public ApiResponse<List<TaskListVO>> listTasks(@RequestParam(required = false) Long userId) {
+        if (userId == null) userId = 1L; // TODO: 后续替换为JWT获取
+        List<TaskListVO> taskList = taskService.listTasks(userId);
+        return ApiResponse.success(taskList);
     }
 
-
     @GetMapping("/{taskId}")
-    @Operation(summary = "获取导读任务详情")
-    public ApiResponse<TaskDetailVO> taskDetail(@PathVariable Long taskId) {
-        return ApiResponse.success(null);
+    @Operation(summary = "获取任务详情")
+    public ApiResponse<TaskDetailVO> getTaskDetail(@PathVariable Long taskId) {
+        TaskDetailVO detail = taskService.getTaskDetail(taskId);
+        return ApiResponse.success(detail);
     }
 }

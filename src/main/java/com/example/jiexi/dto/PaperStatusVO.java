@@ -3,8 +3,8 @@ package com.example.jiexi.dto;
 import lombok.Data;
 
 @Data
-public class PaperVO {
+public class PaperStatusVO {
     private Long paperId;
     private String paperName;
-    private String parseStatus; // WAITING / PARSING / DONE
+    private String parseStatus; // WAITING / PARSING / PARSED / ERROR
 }

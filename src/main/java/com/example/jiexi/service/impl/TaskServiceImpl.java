@@ -8,7 +8,6 @@ import com.example.jiexi.entity.PaperEntity;
 import com.example.jiexi.entity.TaskEntity;
 import com.example.jiexi.mapper.PaperMapper;
 import com.example.jiexi.mapper.TaskMapper;
-import com.example.jiexi.service.TaskParseService;
 import com.example.jiexi.service.TaskService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -18,9 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.time.format.DateTimeFormatter;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+
 @Slf4j
 @Service
 @Tag(name = "导读任务服务")
@@ -30,38 +31,35 @@ public class TaskServiceImpl implements TaskService {
     private final TaskMapper taskMapper;
     private final PaperMapper paperMapper;
 
-    /** PDF 文件保存根目录 */
     private static final String UPLOAD_DIR = "D:/aaa_jiexi_temmp/";
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long createTask(Long userId, String taskName, List<MultipartFile> files) {
-
-        // 1️⃣ 参数校验
         if (files == null || files.isEmpty()) {
             throw new IllegalArgumentException("请至少上传一篇 PDF 论文");
         }
 
-        // 2️⃣ 创建任务（数据库）
+        // 创建任务
         TaskEntity task = new TaskEntity();
         task.setUserId(userId);
         task.setTaskName(taskName);
         task.setPaperCount(files.size());
-        task.setStatus("WAITING");              // ✅ 初始状态为 WAITING
+        task.setStatus("WAITING");
         task.setCreateTime(LocalDateTime.now());
 
         taskMapper.insert(task);
-        Long taskId = task.getId();              // MP 自动回填主键
+        Long taskId = task.getId();
 
-        // 3️⃣ 创建任务目录
+        // 创建任务目录
         File taskDir = new File(UPLOAD_DIR + taskId);
         if (!taskDir.exists() && !taskDir.mkdirs()) {
             throw new RuntimeException("创建任务目录失败");
         }
 
-        // 4️⃣ 保存 PDF + 写 paper 表
+        // 保存文件 + 写入 Paper 表
         for (MultipartFile file : files) {
-
             String originalName = file.getOriginalFilename();
             if (originalName == null || !originalName.toLowerCase().endsWith(".pdf")) {
                 throw new IllegalArgumentException("仅支持 PDF 格式文件");
@@ -69,7 +67,6 @@ public class TaskServiceImpl implements TaskService {
 
             String fileName = UUID.randomUUID() + "_" + originalName;
             File destFile = new File(taskDir, fileName);
-
             try {
                 file.transferTo(destFile);
             } catch (Exception e) {
@@ -81,7 +78,7 @@ public class TaskServiceImpl implements TaskService {
             paper.setTaskId(taskId);
             paper.setPaperName(originalName);
             paper.setPdfPath(destFile.getAbsolutePath());
-            paper.setParseStatus("WAITING"); // ✅ 初始状态为 WAITING
+            paper.setParseStatus("WAITING");
             paper.setCreateTime(LocalDateTime.now());
 
             paperMapper.insert(paper);
@@ -93,17 +90,19 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public TaskDetailVO getTaskDetail(Long taskId) {
-
+        // 1️⃣ 查询任务
         TaskEntity task = taskMapper.selectById(taskId);
         if (task == null) {
             throw new RuntimeException("任务不存在");
         }
 
-        List<PaperEntity> paperEntities = paperMapper.selectList(
+        // 2️⃣ 查询该任务下的所有论文
+        List<PaperEntity> papers = paperMapper.selectList(
                 new QueryWrapper<PaperEntity>().eq("task_id", taskId)
         );
 
-        List<PaperVO> paperVOList = paperEntities.stream().map(paper -> {
+        // 3️⃣ 转换为 PaperVO 列表
+        List<PaperVO> paperVOList = papers.stream().map(paper -> {
             PaperVO vo = new PaperVO();
             vo.setPaperId(paper.getId());
             vo.setPaperName(paper.getPaperName());
@@ -111,20 +110,21 @@ public class TaskServiceImpl implements TaskService {
             return vo;
         }).toList();
 
+        // 4️⃣ 构造 TaskDetailVO 返回
         TaskDetailVO vo = new TaskDetailVO();
         vo.setTaskId(task.getId());
         vo.setTaskName(task.getTaskName());
         vo.setStatus(task.getStatus());
         vo.setPaperCount(task.getPaperCount());
-        vo.setCreateTime(task.getCreateTime());
+        vo.setCreateTime(task.getCreateTime().format(DATE_FORMATTER));
         vo.setPapers(paperVOList);
 
         return vo;
     }
 
+
     @Override
     public List<TaskListVO> listTasks(Long userId) {
-
         List<TaskEntity> taskEntities = taskMapper.selectList(
                 new QueryWrapper<TaskEntity>()
                         .eq("user_id", userId)
@@ -132,12 +132,27 @@ public class TaskServiceImpl implements TaskService {
         );
 
         return taskEntities.stream().map(task -> {
+            // 查询该任务的论文列表
+            List<PaperEntity> papers = paperMapper.selectList(
+                    new QueryWrapper<PaperEntity>().eq("task_id", task.getId())
+                            .orderByAsc("id") // 保证上传顺序
+            );
+
+            List<PaperVO> paperVOList = papers.stream().map(paper -> {
+                PaperVO vo = new PaperVO();
+                vo.setPaperId(paper.getId());
+                vo.setPaperName(paper.getPaperName());
+                vo.setParseStatus(paper.getParseStatus());
+                return vo;
+            }).toList();
+
             TaskListVO vo = new TaskListVO();
             vo.setTaskId(task.getId());
             vo.setTaskName(task.getTaskName());
             vo.setStatus(task.getStatus());
             vo.setPaperCount(task.getPaperCount());
-            vo.setCreateTime(task.getCreateTime().toString());
+            vo.setCreateTime(task.getCreateTime().format(DATE_FORMATTER));
+            vo.setPapers(paperVOList); // ✅ 每个任务包含所有论文及状态
             return vo;
         }).toList();
     }
