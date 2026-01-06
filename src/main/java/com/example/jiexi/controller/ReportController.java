@@ -25,12 +25,12 @@ public class ReportController {
         return ApiResponse.success(vo);
     }
 
-    @PutMapping("/{reportId}")
-    public ApiResponse<Void> updateReport(
-            @PathVariable Long reportId,
+    @PutMapping("/task/{taskId}")
+    public ApiResponse<Void> updateReportByTaskId(
+            @PathVariable Long taskId,
             @RequestBody ReportUpdateDTO dto
     ) {
-        reportService.updateReport(reportId, dto);
+        reportService.updateReportByTaskId(taskId, dto);
         return ApiResponse.success(null);
     }
 

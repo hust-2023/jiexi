@@ -9,6 +9,7 @@ import com.example.jiexi.service.ReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,21 +19,14 @@ public class ReportServiceImpl implements ReportService {
 
     private final TaskReportMapper reportMapper;
 
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
     @Override
     public ReportVO getReportByTaskId(Long taskId) {
         TaskReportEntity entity = reportMapper.selectOne(
                 new QueryWrapper<TaskReportEntity>().eq("task_id", taskId)
         );
-        if (entity == null) return null;
-
-        ReportVO vo = new ReportVO();
-        vo.setId(entity.getId());
-        vo.setTaskId(entity.getTaskId());
-        vo.setTitle(entity.getTitle());
-        vo.setType(entity.getType());
-        vo.setContentMd(entity.getContentMd());
-        vo.setCreateTime(entity.getCreateTime());
-        return vo;
+        return entity == null ? null : toVO(entity);
     }
 
     @Override
@@ -40,19 +34,18 @@ public class ReportServiceImpl implements ReportService {
         List<TaskReportEntity> list = reportMapper.selectList(
                 new QueryWrapper<TaskReportEntity>().eq("task_id", taskId)
         );
-
-        return list.stream().map(entity -> {
-            ReportVO vo = new ReportVO();
-            vo.setId(entity.getId());
-            vo.setTaskId(entity.getTaskId());
-            vo.setTitle(entity.getTitle());
-            vo.setType(entity.getType());
-            vo.setContentMd(entity.getContentMd());
-            vo.setCreateTime(entity.getCreateTime());
-            return vo;
-        }).collect(Collectors.toList());
+        return list.stream().map(this::toVO).collect(Collectors.toList());
     }
 
+    public void updateReportByTaskId(Long taskId, ReportUpdateDTO dto) {
+        TaskReportEntity entity = reportMapper.selectOne(
+                new QueryWrapper<TaskReportEntity>().eq("task_id", taskId)
+        );
+        if (entity == null) return;
+        if (dto.getTitle() != null) entity.setTitle(dto.getTitle());
+        if (dto.getContentMd() != null) entity.setContentMd(dto.getContentMd());
+        reportMapper.updateById(entity);
+    }
     @Override
     public void updateReport(Long reportId, ReportUpdateDTO dto) {
         TaskReportEntity entity = reportMapper.selectById(reportId);
@@ -69,5 +62,19 @@ public class ReportServiceImpl implements ReportService {
         return reportMapper.selectOne(
                 new QueryWrapper<TaskReportEntity>().eq("task_id", taskId)
         );
+    }
+
+    /** 将 TaskReportEntity 转为前端使用的 VO */
+    private ReportVO toVO(TaskReportEntity entity) {
+        ReportVO vo = new ReportVO();
+        vo.setId(entity.getId());
+        vo.setTaskId(entity.getTaskId());
+        vo.setTitle(entity.getTitle());
+        vo.setType(entity.getType());
+        vo.setContentMd(entity.getContentMd());
+        if (entity.getCreateTime() != null) {
+            vo.setCreateTime(entity.getCreateTime());
+        }
+        return vo;
     }
 }
