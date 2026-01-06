@@ -1,6 +1,8 @@
 package com.example.jiexi.service;
 
 
+import com.example.jiexi.dto.TaskDetailVO;
+import com.example.jiexi.dto.TaskListVO;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -13,4 +15,6 @@ public interface TaskService {
             description = "创建一个导读任务，支持同时上传多篇 PDF 论文"
     )
     Long createTask(Long userId, String taskName, List<MultipartFile> files);
+    List<TaskListVO> listTasks(Long userId);
+    TaskDetailVO getTaskDetail(Long taskId);
 }

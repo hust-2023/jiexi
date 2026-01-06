@@ -33,9 +33,12 @@ public class TaskController {
     @GetMapping
     @Operation(summary = "获取导读任务列表")
     public ApiResponse<List<TaskListVO>> listTasks() {
-        // TODO 从 token 中取 userId
-        return ApiResponse.success(null);
+
+        Long userId = 1L; // ⚠️ 先写死，后面接登录态
+        List<TaskListVO> list = taskService.listTasks(userId);
+        return ApiResponse.success(list);
     }
+
 
     @GetMapping("/{taskId}")
     @Operation(summary = "获取导读任务详情")
