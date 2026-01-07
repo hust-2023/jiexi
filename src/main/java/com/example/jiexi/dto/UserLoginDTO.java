@@ -3,8 +3,7 @@ package com.example.jiexi.dto;
 import lombok.Data;
 
 @Data
-public class UserVO {
-    private Long id;
+public class UserLoginDTO {
     private String username;
-    private String role;
+    private String password;
 }

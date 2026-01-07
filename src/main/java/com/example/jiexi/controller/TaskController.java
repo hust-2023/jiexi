@@ -3,6 +3,7 @@ package com.example.jiexi.controller;
 import com.example.jiexi.dto.TaskDetailVO;
 import com.example.jiexi.dto.TaskListVO;
 import com.example.jiexi.entity.ApiResponse;
+import com.example.jiexi.security.UserContext;
 import com.example.jiexi.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -24,15 +25,15 @@ public class TaskController {
             @RequestParam String taskName,
             @RequestParam List<MultipartFile> files
     ) {
-        Long userId = 1L; // TODO: 后续替换为JWT获取
+        Long userId = UserContext.getUserId(); // 从全局上下文获取
         Long taskId = taskService.createTask(userId, taskName, files);
         return ApiResponse.success(taskId);
     }
 
     @GetMapping("/list")
     @Operation(summary = "获取导读任务列表")
-    public ApiResponse<List<TaskListVO>> listTasks(@RequestParam(required = false) Long userId) {
-        if (userId == null) userId = 1L; // TODO: 后续替换为JWT获取
+    public ApiResponse<List<TaskListVO>> listTasks() {
+        Long userId = UserContext.getUserId();
         List<TaskListVO> taskList = taskService.listTasks(userId);
         return ApiResponse.success(taskList);
     }
@@ -40,7 +41,9 @@ public class TaskController {
     @GetMapping("/{taskId}")
     @Operation(summary = "获取任务详情")
     public ApiResponse<TaskDetailVO> getTaskDetail(@PathVariable Long taskId) {
-        TaskDetailVO detail = taskService.getTaskDetail(taskId);
+        Long userId = UserContext.getUserId();
+        TaskDetailVO detail = taskService.getTaskDetailByUser(taskId, userId);
+        if (detail == null) return ApiResponse.error("任务不存在或无权限访问");
         return ApiResponse.success(detail);
     }
 }

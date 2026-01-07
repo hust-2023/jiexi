@@ -90,18 +90,16 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public TaskDetailVO getTaskDetail(Long taskId) {
-        // 1️⃣ 查询任务
+        // 原始方法，不限制用户（内部/管理员用）
         TaskEntity task = taskMapper.selectById(taskId);
         if (task == null) {
             throw new RuntimeException("任务不存在");
         }
 
-        // 2️⃣ 查询该任务下的所有论文
         List<PaperEntity> papers = paperMapper.selectList(
                 new QueryWrapper<PaperEntity>().eq("task_id", taskId)
         );
 
-        // 3️⃣ 转换为 PaperVO 列表
         List<PaperVO> paperVOList = papers.stream().map(paper -> {
             PaperVO vo = new PaperVO();
             vo.setPaperId(paper.getId());
@@ -110,7 +108,6 @@ public class TaskServiceImpl implements TaskService {
             return vo;
         }).toList();
 
-        // 4️⃣ 构造 TaskDetailVO 返回
         TaskDetailVO vo = new TaskDetailVO();
         vo.setTaskId(task.getId());
         vo.setTaskName(task.getTaskName());
@@ -122,6 +119,41 @@ public class TaskServiceImpl implements TaskService {
         return vo;
     }
 
+    @Override
+    public TaskDetailVO getTaskDetailByUser(Long taskId, Long userId) {
+        // ✅ 用户隔离：仅查询该用户的任务
+        TaskEntity task = taskMapper.selectOne(
+                new QueryWrapper<TaskEntity>()
+                        .eq("id", taskId)
+                        .eq("user_id", userId)
+        );
+
+        if (task == null) {
+            throw new RuntimeException("任务不存在或无权限查看");
+        }
+
+        List<PaperEntity> papers = paperMapper.selectList(
+                new QueryWrapper<PaperEntity>().eq("task_id", taskId)
+        );
+
+        List<PaperVO> paperVOList = papers.stream().map(paper -> {
+            PaperVO vo = new PaperVO();
+            vo.setPaperId(paper.getId());
+            vo.setPaperName(paper.getPaperName());
+            vo.setParseStatus(paper.getParseStatus());
+            return vo;
+        }).toList();
+
+        TaskDetailVO vo = new TaskDetailVO();
+        vo.setTaskId(task.getId());
+        vo.setTaskName(task.getTaskName());
+        vo.setStatus(task.getStatus());
+        vo.setPaperCount(task.getPaperCount());
+        vo.setCreateTime(task.getCreateTime().format(DATE_FORMATTER));
+        vo.setPapers(paperVOList);
+
+        return vo;
+    }
 
     @Override
     public List<TaskListVO> listTasks(Long userId) {
@@ -132,10 +164,9 @@ public class TaskServiceImpl implements TaskService {
         );
 
         return taskEntities.stream().map(task -> {
-            // 查询该任务的论文列表
             List<PaperEntity> papers = paperMapper.selectList(
                     new QueryWrapper<PaperEntity>().eq("task_id", task.getId())
-                            .orderByAsc("id") // 保证上传顺序
+                            .orderByAsc("id")
             );
 
             List<PaperVO> paperVOList = papers.stream().map(paper -> {
@@ -152,7 +183,7 @@ public class TaskServiceImpl implements TaskService {
             vo.setStatus(task.getStatus());
             vo.setPaperCount(task.getPaperCount());
             vo.setCreateTime(task.getCreateTime().format(DATE_FORMATTER));
-            vo.setPapers(paperVOList); // ✅ 每个任务包含所有论文及状态
+            vo.setPapers(paperVOList);
             return vo;
         }).toList();
     }

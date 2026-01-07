@@ -8,25 +8,21 @@ import java.util.List;
 
 public interface ReportService {
 
-    /**
-     * 根据任务ID获取报告
-     */
+    // ✅ 新增：根据任务ID + 用户ID获取报告（用户隔离）
+    ReportVO getReportByTaskIdAndUser(Long taskId, Long userId);
+
+    void updateReportByTaskIdAndUser(Long taskId, Long userId, ReportUpdateDTO dto);
+
+    TaskReportEntity getReportEntityByTaskIdAndUser(Long taskId, Long userId);
+
+    /** 旧版方法，兼容 Controller 使用 */
     ReportVO getReportByTaskId(Long taskId);
 
-    /**
-     * 根据任务ID列出所有报告（可能一任务对应多条）
-     */
     List<ReportVO> listReportsByTaskId(Long taskId);
 
-    /**
-     * 更新报告内容（通过任务ID更新，保持和 Controller 一致）
-     */
-    void updateReport(Long taskId, ReportUpdateDTO dto);
-
-    /**
-     * 获取 TaskReportEntity 用于下载
-     */
-    TaskReportEntity getReportEntityByTaskId(Long taskId);
-
     void updateReportByTaskId(Long taskId, ReportUpdateDTO dto);
+
+    void updateReport(Long reportId, ReportUpdateDTO dto);
+
+    TaskReportEntity getReportEntityByTaskId(Long taskId);
 }

@@ -16,7 +16,7 @@ public interface TaskService {
 
     // 查询用户所有任务（返回实体）
     List<TaskListVO> listTasks(Long userId);
-
+    TaskDetailVO getTaskDetailByUser(Long taskId, Long userId);
 
     // 根据ID获取任务
     TaskDetailVO getTaskDetail(Long taskId);
